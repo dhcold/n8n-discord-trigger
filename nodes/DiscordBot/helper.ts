@@ -1,6 +1,8 @@
 import ipc from 'node-ipc';
 import { INodePropertyOptions } from 'n8n-workflow';
 import axios from "axios";
+import { Message, User } from 'discord.js';
+import settings from './settings';
 
 export interface ICredentials {
     clientId: string;
@@ -226,6 +228,59 @@ export const ipcRequest = (type: string, parameters: any): Promise<any> => {
     });
 };
 
+
+
+export const triggerWorkflow = async (
+    webhookId: string,
+    message: Message | null,
+    baseUrl: string,
+    user?: User,
+    channelId?: string,
+    presence?: string,
+    addedRoles?: string[],
+    removedRoles?: string[],
+    interactionMessageId?: string,
+    interactionValues?: string[],
+    userRoles?: string[],
+  ): Promise<boolean> => {
+    const headers = {
+      accept: 'application/json',
+    };
+  
+    const res = await axios
+      .post(
+        `${baseUrl}/webhook${settings.testMode ? '-test' : ''}/${webhookId}/webhook`,
+        {
+          content: message?.content,
+          channelId: message?.channelId ?? channelId,
+          userId: message?.author.id ?? user?.id,
+          userName: message?.author.username ?? user?.username,
+          userTag: message?.author.tag ?? user?.tag,
+          messageId: message?.id,
+          attachments: message?.attachments,
+          presence,
+          addedRoles,
+          removedRoles,
+          interactionMessageId,
+          interactionValues,
+          userRoles,
+        },
+        { headers },
+      )
+      .catch((e) => {
+        console.log(e);
+        if (settings.triggerNodes[webhookId] && !settings.testMode) {
+            settings.triggerNodes[webhookId].active = false;
+          ipc.connectTo('bot', () => {
+            ipc.of.bot.emit('trigger', { ...settings.triggerNodes[webhookId], baseUrl: settings.baseUrl });
+          });
+        }
+      });
+  
+    if (res) return true;
+    return false;
+  };
+  
 
 function removeTrailingSlash(url: String) {
     if (url.endsWith('/')) {

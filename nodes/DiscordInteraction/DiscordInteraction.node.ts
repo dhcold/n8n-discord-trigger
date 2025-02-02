@@ -13,7 +13,7 @@ import {
     getChannels as getChannelsHelper,
     getRoles as getRolesHelper,
     getGuilds as getGuildsHelper,
-} from '../helper';
+} from '../DiscordBot/helper';
 
 
 export interface IDiscordInteractionMessageParameters {

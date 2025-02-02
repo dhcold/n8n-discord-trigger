@@ -1,4 +1,3 @@
-
 import {
     Client, GatewayIntentBits, Role, GuildBasedChannel, ChannelType,Guild,
     EmbedBuilder,
@@ -10,8 +9,9 @@ import ipc from 'node-ipc';
 import {
     ICredentials,
 } from './helper';
+import setupOnMessageCreate from './listeners/messageCreate';
+import { IDiscordInteractionMessageParameters, IDiscordNodeActionParameters } from '../DiscordInteraction/DiscordInteraction.node';
 import settings from './settings';
-import { IDiscordInteractionMessageParameters, IDiscordNodeActionParameters } from './DiscordInteraction/DiscordInteraction.node';
 
 export default function () {
     const client = new Client({
@@ -21,7 +21,7 @@ export default function () {
             GatewayIntentBits.MessageContent,
             GatewayIntentBits.GuildMembers,
             GatewayIntentBits.GuildPresences,
-            GatewayIntentBits.GuildBans,
+            GatewayIntentBits.GuildModeration,
             GatewayIntentBits.GuildMessageReactions,
             GatewayIntentBits.GuildMessageTyping,
         ],
@@ -50,81 +50,11 @@ export default function () {
         ipc.server.on('triggerNodeRegistered', (data: any, socket: any) => {
 
             // set the specific node parameters for a later iteration when we get messages
-            settings.triggerNodes[data.nodeId] = data.parameters;
+            settings.triggerNodes[data.nodeId] = data;
+            console.log(`registering ${data.nodeId}:`, data);
 
-            // whenever a message is created this listener is called
-            const onMessageCreate = (message: any) => {
-                
-                // iterate through all nodes and see if we need to trigger some                
-                for(const [nodeId,  parameters] of Object.entries(settings.triggerNodes) as [string, any]) {
-                    try {
-                        // ignore messages of other bots
-                        if (message.author.bot || message.author.system) return;
-    
-                        const pattern = parameters.pattern;
-    
-                        // check if executed by the proper role
-                        const userRoles = message.member?.roles.cache.map((role: any) => role.id);
-                        if (parameters.roleIds.length) {
-                            const hasRole = parameters.roleIds.some((role: any) => userRoles?.includes(role));
-                            if (!hasRole) return;
-                        }
-    
-                        // check if executed by the proper channel
-                        if (parameters.channelIds.length) {
-                            const isInChannel = parameters.channelIds.some((channelId: any) => message.channel.id?.includes(channelId));
-                            if (!isInChannel) return;
-                        }
-    
-                        // escape the special chars to properly trigger the message
-                        const escapedTriggerValue = String(parameters.value)
-                            .replace(/[|\\{}()[\]^$+*?.]/g, '\\$&')
-                            .replace(/-/g, '\\x2d');
-    
-                        const clientId = client.user?.id;
-                        const botMention = message.mentions.users.some((user: any) => user.id === clientId);
-    
-                        let regStr = `^${escapedTriggerValue}$`;
-    
-                        // return if we expect a bot mention, but bot is not mentioned
-                        if (pattern === "botMention" && !botMention)
-                            return;
-    
-                        else if (pattern === "start" && message.content)
-                            regStr = `^${escapedTriggerValue}`;
-                        else if (pattern === 'end')
-                            regStr = `${escapedTriggerValue}$`;
-                        else if (pattern === 'contain')
-                            regStr = `${escapedTriggerValue}`;
-                        else if (pattern === 'regex')
-                            regStr = `${parameters.value}`;
-                        else if (pattern === 'every')
-                            regStr = `(.*)`;
-    
-                        const reg = new RegExp(regStr, parameters.caseSensitive ? '' : 'i');
-    
-                        if ((pattern === "botMention" && botMention) || reg.test(message.content)) {
-                            // Emit the message data to n8n
-                            ipc.server.emit(socket, 'messageCreate', { 
-                                message, 
-                                author: message.author, 
-                                nodeId: nodeId 
-                            });
-                        }
-    
-                    } catch (e) {
-                        console.log(e);
-                    }
-                }
-            };
-
-            // Clear existing listeners for `messageCreate`
-            client.removeAllListeners('messageCreate');
-            // Add new listener for `messageCreate`
-            client.on('messageCreate', onMessageCreate);
-
+            setupOnMessageCreate(client);
         });
-
 
 
 
@@ -140,7 +70,7 @@ export default function () {
                             value: role.id,
                         };
                     });
-
+                    
                     ipc.server.emit(socket, 'list:roles', rolesList);
                 }
             } catch (e) {
