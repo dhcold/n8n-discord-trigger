@@ -51,7 +51,7 @@ export const getChannels = async (that: any, guildIds: string[]): Promise<INodeP
 
     const channelsRequest = () =>
         new Promise((resolve) => {
-            const timeout = setTimeout(() => resolve(''), 5000);
+            const timeout = setTimeout(() => resolve(''), 15000);
 
             ipc.config.retry = 1500;
             ipc.connectTo('bot', () => {
@@ -101,7 +101,7 @@ export const getGuilds = async (that: any): Promise<INodePropertyOptions[]> => {
 
     const guildsRequest = () =>
         new Promise((resolve) => {
-            const timeout = setTimeout(() => resolve(''), 5000);
+            const timeout = setTimeout(() => resolve(''), 15000);
 
             ipc.config.retry = 1500;
             ipc.connectTo('bot', () => {
@@ -155,7 +155,7 @@ export const getRoles = async (that: any, selectedGuildIds: string[]): Promise<I
 
     const rolesRequest = () =>
         new Promise((resolve) => {
-            const timeout = setTimeout(() => resolve(''), 5000);
+            const timeout = setTimeout(() => resolve(''), 15000);
 
             ipc.config.retry = 1500;
             ipc.connectTo('bot', () => {
